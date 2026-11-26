@@ -1,0 +1,61 @@
+# Velvet Configuration
+# Default palette is "Carbon Dark" (see THEMES.md for presets).
+# See THEMES.md for saved presets (Carbon Dark, Tokyo Night, Catppuccin Mocha).
+
+[window]
+width = 580.0
+max_height = 412.0
+top_offset_ratio = 0.22
+border_radius = 12.0
+hide_on_blur = true
+row_height = 40.0
+animation_ms = 130
+
+[hotkeys]
+# Global toggle hotkey (Win32 RegisterHotKey). Examples: "Alt+Space", "Ctrl+Space", "Ctrl+Shift+P"
+toggle = "Alt+Space"
+# Set to true to toggle the launcher on a clean lone press-and-release of the Windows key
+# (all Win+* shortcuts like Win+E, Win+R, Win+D, Win+Shift+S continue to work normally).
+# Can also be toggled live from the Velvet tray menu or in-launcher search without restarting.
+intercept_win_key = false
+win_key_max_tap_ms = 350
+
+[taskbar]
+# Set to true to hide the Windows 11 taskbar and reclaim bottom work area while running.
+# Note: preserves top bars such as YASB (36px top AppBar).
+hide_on_startup = false
+watchdog_interval_ms = 1500
+
+[search]
+max_results = 40
+show_math = true
+show_system_actions = true
+index_uwp = true
+index_start_menu = true
+placeholder = "Search apps, calculate, or run actions..."
+
+[theme]
+sync_yasb = false
+font_family = "Poppins"
+mono_font_family = "JetBrainsMono NFP"
+font_size = 13.5
+background = "#0b0b0ef6"
+surface = "#08080af4"
+surface_focused = "#0b0b0ef6"
+row_hover = "#1a1a20cc"
+row_selected = "#24242be8"
+border = "#ffffff14"
+border_subtle = "#ffffff0c"
+accent = "#e4e4e7ff"
+accent_secondary = "#a1a1aaff"
+text_primary = "#f4f4f5ff"
+text_secondary = "#a1a1aaff"
+text_muted = "#71717aff"
+badge_app = "#e4e4e722"
+badge_app_text = "#e4e4e7ff"
+badge_store = "#7dd3fc22"
+badge_store_text = "#7dd3fcff"
+badge_math = "#6ee7b722"
+badge_math_text = "#6ee7b7ff"
+badge_system = "#fca5a522"
+badge_system_text = "#fca5a5ff"
