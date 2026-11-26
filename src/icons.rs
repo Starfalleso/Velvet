@@ -184,7 +184,7 @@ fn sample_velvet_svg(x: f32, y: f32) -> Option<(u8, u8, u8)> {
     } else if in_left_petal(x, y) || in_center_pill(x, y) || in_right_petal(x, y) {
         Some((0xFF, 0xFF, 0xFF))
     } else if in_bg_rect(x, y) {
-        Some((0x5E, 0x4A, 0xE3))
+        Some((0x58, 0x65, 0xF2))
     } else {
         None
     }
@@ -346,8 +346,8 @@ mod tests {
 
         // Top-left outer margin should be transparent
         assert_eq!(pixel(0, 0), [0, 0, 0, 0]);
-        // Background purple (#5E4AE3) around (48px, 48px) -> (12, 12) in 64x64
-        assert_eq!(pixel(12, 12), [0x5E, 0x4A, 0xE3, 0xFF]);
+        // Background blurple (#5865F2) around (48px, 48px) -> (12, 12) in 64x64
+        assert_eq!(pixel(12, 12), [0x58, 0x65, 0xF2, 0xFF]);
         // Center white pill (#FFFFFF) at (128, 100) -> (32, 25)
         assert_eq!(pixel(32, 25), [0xFF, 0xFF, 0xFF, 0xFF]);
         // Dark chevron (#1E222B) at (128, 188) -> (32, 47)
@@ -365,5 +365,21 @@ mod tests {
             .join("velvet.ico");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, encode_velvet_ico()).unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn export_velvet_png() {
+        let size = 1024u32;
+        let rgba = render_velvet_icon_rgba(size);
+        let mut png = Vec::new();
+        PngEncoder::new(&mut png)
+            .write_image(&rgba, size, size, ColorType::Rgba8.into())
+            .expect("PNG encoding for velvet.png");
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("assets")
+            .join("velvet.png");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, png).unwrap();
     }
 }
