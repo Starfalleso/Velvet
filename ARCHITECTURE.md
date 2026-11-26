@@ -56,6 +56,8 @@ All cross-thread events converge through a single lock-free `async_channel::unbo
 | [src/win_window.rs](src/win_window.rs) | `WS_EX_TOOLWINDOW | WS_EX_TOPMOST`, DWM border/corner/non-client suppression (`DWMWA_BORDER_COLOR`, `DWMWA_WINDOW_CORNER_PREFERENCE`, `DWMWA_NCRENDERING_POLICY = DWMNCRP_DISABLED`), `GWLP_WNDPROC` `WM_SETTINGCHANGE` re-entrancy guard (preventing GPUI `0.2.2` `RefCell` panics during `SHAppBarMessage`/`SPI_SETWORKAREA`), transparent shadow margins (`WINDOW_PAD_*`), cursor-monitor DPI centering, and `AttachThreadInput` focus acquisition. |
 | [src/win_hooks.rs](src/win_hooks.rs) | `RegisterHotKey`, live-toggleable `WH_KEYBOARD_LL` lone-Win tap hook, DPI-aware inset `WH_MOUSE_LL` click-outside hook, tray icon/menu (`Theme ▸`, Win-key hook, taskbar, autostart), and event-driven `SetWinEventHook` + backup timer taskbar watcher. |
 | [src/autostart.rs](src/autostart.rs) | Manages `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\Velvet.lnk` via COM `IShellLinkW` / `IPersistFile`. |
+| [src/yasb_setup.rs](src/yasb_setup.rs) | Handles `velvet.exe --setup-yasb`, backing up `%USERPROFILE%\.config\yasb\config.yaml` and safely wiring/updating the YASB bar widget. |
+| [installer/velvet.iss](installer/velvet.iss) | Inno Setup 6 per-user installer (`Velvet-Setup-0.1.0.exe`), Start Menu shortcut, optional autostart + `--setup-yasb` tasks, and clean uninstall. |
 | [src/taskbar.rs](src/taskbar.rs) | Multi-monitor `explorer.exe`-filtered `Shell_TrayWnd` / `Shell_SecondaryTrayWnd` disabling & hiding (`ABM_SETSTATE`, `EnableWindow(false)`, `SW_HIDE` + `SWP_HIDEWINDOW`), initial edge-aware `SPI_SETWORKAREA` (preserving top AppBars like YASB), `250 ms` exposure watchdog, `taskbar-hidden.flag` recovery, and RAII `TaskbarGuard`. |
 
 ---

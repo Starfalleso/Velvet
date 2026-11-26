@@ -17,11 +17,17 @@ A fast, lightweight Windows 11 app launcher built in Rust with **GPUI**.
 - **Click-Outside Dismissal:** Global `WH_MOUSE_LL` hook + window blur handling closes Velvet smoothly when clicking anywhere outside.
 - **Taskbar Hide Mode:** Reliably hides Explorer's `Shell_TrayWnd` / `Shell_SecondaryTrayWnd` (filtering by `explorer.exe` so third-party dummy `Shell_TrayWnd` hosts like YASB's systray listener are never touched) whether Windows auto-hide is ON or OFF—combining `ABM_SETSTATE`, `EnableWindow(false)`, `SW_HIDE` + `SWP_HIDEWINDOW`, an event-driven `SetWinEventHook` + `250 ms` re-hide watchdog (without triggering `SPI_SETWORKAREA` loops), and initial edge-aware `SPI_SETWORKAREA` expansion that preserves top AppBars (like YASB), with guaranteed restoration on exit, panic, or next startup via `taskbar-hidden.flag`.
 
-## Build
+## Build & Installer
 ```powershell
-cargo build --release
+cargo build --profile dist
 ```
-The release binary is output at `target\release\velvet.exe`.
+The optimized distribution binary is output at `target\dist\velvet.exe` (or `target\release\velvet.exe` for `cargo build --release`).
+
+To build the Windows installer (`dist\Velvet-Setup-0.1.0.exe`) with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
+```powershell
+ISCC.exe installer\velvet.iss
+```
+The installer installs per-user to `%LOCALAPPDATA%\Programs\Velvet\velvet.exe` (no admin prompt), creates a Start Menu shortcut, and optionally configures **Start with Windows** (`--enable-autostart`) and the **YASB top bar button** (`--setup-yasb`).
 
 - Architecture details & diagrams: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Saved theme presets (Carbon Dark, Tokyo Night, Catppuccin Mocha): [THEMES.md](THEMES.md)
@@ -54,7 +60,8 @@ The release binary is output at `target\release\velvet.exe`.
 ---
 
 ## 2. Hook `velvet.exe --toggle` into YASB
-In `%USERPROFILE%\.config\yasb\config.yaml`, configure your `launchpad` widget as a `yasb.custom.CustomWidget`:
+- **Automatic:** Run `velvet.exe --setup-yasb` (or check **"Add / update Velvet button on YASB top bar"** in `Velvet-Setup`) — backs up `config.yaml` to `config.yaml.velvet.bak` and wires the bar button automatically.
+- **Manual:** In `%USERPROFILE%\.config\yasb\config.yaml`, configure your `launchpad` widget as a `yasb.custom.CustomWidget`:
 
 ```yaml
   launchpad:

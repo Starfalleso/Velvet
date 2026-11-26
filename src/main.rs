@@ -14,6 +14,7 @@ mod ui;
 mod usage;
 mod win_hooks;
 mod win_window;
+mod yasb_setup;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -39,6 +40,9 @@ struct CliArgs {
     toggle_taskbar: bool,
     reload: bool,
     quit: bool,
+    setup_yasb: bool,
+    enable_autostart: bool,
+    disable_autostart: bool,
     help: bool,
     config_path: Option<PathBuf>,
     theme_slug: Option<String>,
@@ -57,6 +61,9 @@ fn parse_args() -> CliArgs {
             "--toggle-taskbar" => args.toggle_taskbar = true,
             "--reload" => args.reload = true,
             "--quit" => args.quit = true,
+            "--setup-yasb" => args.setup_yasb = true,
+            "--enable-autostart" => args.enable_autostart = true,
+            "--disable-autostart" => args.disable_autostart = true,
             "--help" | "-h" => args.help = true,
             "--config" | "-c" => {
                 if let Some(p) = iter.next() {
@@ -91,6 +98,9 @@ fn print_help() {
            --toggle-taskbar   Toggle Windows 11 taskbar visibility\n\
            --reload           Re-scan installed applications\n\
            --quit             Exit the running instance cleanly (restoring taskbar)\n\
+           --setup-yasb       Configure or update YASB top bar button for this velvet.exe\n\
+           --enable-autostart Add Start with Windows Startup shortcut\n\
+           --disable-autostart Remove Start with Windows Startup shortcut\n\
            --theme NAME       Switch theme live (carbon-dark, tokyo-night, catppuccin-mocha)\n\
            --config, -c PATH  Use a custom config.toml path\n\
            --help, -h         Print this help message"
@@ -112,6 +122,21 @@ fn main() {
     let args = parse_args();
     if args.help {
         print_help();
+        return;
+    }
+
+    if args.setup_yasb || args.enable_autostart || args.disable_autostart {
+        if args.setup_yasb {
+            if let Ok(exe) = std::env::current_exe() {
+                let _ = yasb_setup::run_yasb_setup(&exe);
+            }
+        }
+        if args.enable_autostart {
+            let _ = autostart::enable();
+        }
+        if args.disable_autostart {
+            let _ = autostart::disable();
+        }
         return;
     }
 
