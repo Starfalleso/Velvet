@@ -374,6 +374,21 @@ impl LauncherView {
                         indexer::open_file_in_shell(&path);
                     });
                 }
+                SystemActionKind::CheckUpdates => {
+                    self.pending_power_confirm = None;
+                    self.status_hint = Some(("Checking for updates…".to_string(), Instant::now()));
+                    let _ = self.cmd_tx.try_send(AppCommand::CheckForUpdates {
+                        manual: true,
+                        notify_tray: false,
+                    });
+                    cx.notify();
+                }
+                SystemActionKind::InstallUpdate => {
+                    self.pending_power_confirm = None;
+                    self.status_hint = Some(("Downloading update…".to_string(), Instant::now()));
+                    let _ = self.cmd_tx.try_send(AppCommand::InstallUpdate);
+                    cx.notify();
+                }
                 SystemActionKind::SetTheme(preset) => {
                     self.pending_power_confirm = None;
                     self.apply_theme_preset(preset, cx);
@@ -1582,6 +1597,8 @@ fn render_result_row(
                     SystemActionKind::ToggleTaskbar => ("\u{f2d0}", theme.accent_secondary),
                     SystemActionKind::ToggleWinKeyHook => ("\u{f17a}", theme.accent_secondary),
                     SystemActionKind::OpenConfig => ("\u{f013}", theme.text_secondary),
+                    SystemActionKind::CheckUpdates => ("\u{f0aa}", theme.badge_store_text),
+                    SystemActionKind::InstallUpdate => ("\u{f019}", theme.badge_math_text),
                     SystemActionKind::SetTheme(_) => unreachable!(),
                 };
                 div()

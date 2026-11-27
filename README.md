@@ -95,3 +95,5 @@ Key options:
 - **Theme (`[theme]`):**
   - `sync_yasb = true` (off by default) syncs YASB (`~/.config/yasb/styles.css` and `config.yaml`) live whenever you switch presets inside Velvet (`Theme: ...`) or via `velvet.exe --theme tokyo-night`.
   - `font_family`, `mono_font_family`, `font_size`, and `#RRGGBB` / `#RRGGBBAA` hex colors (hot-reloaded automatically when saved).
+- **Updates (`[update]`):**
+  - `check_updates = true` checks GitHub Releases once on startup via WinHTTP, shows a tray notification when a new version is published, and updates in one click (automatically skipped on MSIX/Store builds).

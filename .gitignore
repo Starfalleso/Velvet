@@ -4,8 +4,8 @@
 *.log
 *.bak
 *.tmp
-config.toml
-usage.json
+/config.toml
+/usage.json
 themes/
 desktop.ini
 .DS_Store

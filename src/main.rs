@@ -11,6 +11,7 @@ mod search;
 mod taskbar;
 mod themes;
 mod ui;
+mod updater;
 mod usage;
 mod win_hooks;
 mod win_window;
@@ -210,6 +211,7 @@ fn main() {
 
     let (config, config_path): (Config, PathBuf) =
         config::load_or_create(args.config_path.as_deref());
+    updater::cleanup_old_binary();
 
     if config.taskbar.hide_on_startup || args.hide_taskbar {
         taskbar::hide_taskbar();
@@ -225,6 +227,19 @@ fn main() {
     let hooks_handle = win_hooks::spawn(&config, cmd_tx.clone());
     spawn_indexer_thread(config.search.clone(), cmd_tx.clone());
     indexer::spawn_start_menu_watcher(cmd_tx.clone(), config.search.clone());
+    if config.update.check_updates && !updater::is_packaged_msix() {
+        let tx_upd = cmd_tx.clone();
+        std::thread::Builder::new()
+            .name("velvet-update-check".to_string())
+            .spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                let _ = tx_upd.send_blocking(AppCommand::CheckForUpdates {
+                    manual: false,
+                    notify_tray: true,
+                });
+            })
+            .ok();
+    }
 
     let show_on_boot = args.toggle || args.show;
     let initial_width = config.window.width + 2.0 * win_window::WINDOW_PAD_X;
@@ -392,6 +407,72 @@ fn main() {
                         let path = config_path_for_open.clone();
                         std::thread::spawn(move || {
                             indexer::open_file_in_shell(&path);
+                        });
+                    }
+                    AppCommand::CheckForUpdates { manual, notify_tray } => {
+                        let tx_upd = cmd_tx_reload.clone();
+                        let hooks = hooks_handle;
+                        std::thread::spawn(move || match updater::check_for_update() {
+                            Ok(Some(info)) => {
+                                let _ = tx_upd.send_blocking(AppCommand::UpdateAvailable(info));
+                            }
+                            Ok(None) if manual => {
+                                if notify_tray {
+                                    hooks.notify_update(true);
+                                }
+                                let _ = tx_upd.send_blocking(AppCommand::UpdateStatusHint(format!(
+                                    "Up to date (v{})",
+                                    updater::current_version()
+                                )));
+                            }
+                            Err(_) if manual => {
+                                let _ = tx_upd.send_blocking(AppCommand::UpdateStatusHint(
+                                    "Update check failed".to_string(),
+                                ));
+                            }
+                            _ => {}
+                        });
+                    }
+                    AppCommand::UpdateAvailable(info) => {
+                        let ver = info.version.clone();
+                        updater::set_latest_update(Some(info));
+                        hooks_handle.notify_update(false);
+                        let _ = window_handle.update(cx, |view, _window, cx| {
+                            view.refresh_taskbar_state(cx);
+                            view.set_status_hint(format!("Update available: v{ver}"), cx);
+                        });
+                    }
+                    AppCommand::InstallUpdate => {
+                        if let Some(info) = updater::latest_update() {
+                            let ver = info.version.clone();
+                            let tx_done = cmd_tx_reload.clone();
+                            let _ = window_handle.update(cx, |view, _window, cx| {
+                                view.set_status_hint(format!("Updating to v{ver}…"), cx);
+                            });
+                            std::thread::spawn(move || match updater::apply_update(&info) {
+                                Ok(
+                                    updater::UpdateApplyResult::LaunchedInstallerQuitNeeded
+                                    | updater::UpdateApplyResult::ReplacedPortableQuitNeeded,
+                                ) => {
+                                    let _ = tx_done.send_blocking(AppCommand::Quit);
+                                }
+                                Ok(updater::UpdateApplyResult::OpenedBrowser) => {
+                                    let _ = tx_done.send_blocking(AppCommand::UpdateStatusHint(
+                                        format!("Opened v{ver} release page"),
+                                    ));
+                                }
+                                Err(_) => {
+                                    indexer::open_file_in_shell(std::path::Path::new(&info.html_url));
+                                    let _ = tx_done.send_blocking(AppCommand::UpdateStatusHint(
+                                        format!("Opened v{ver} release page"),
+                                    ));
+                                }
+                            });
+                        }
+                    }
+                    AppCommand::UpdateStatusHint(msg) => {
+                        let _ = window_handle.update(cx, |view, _window, cx| {
+                            view.set_status_hint(msg, cx);
                         });
                     }
                     AppCommand::Quit => {

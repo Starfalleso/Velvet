@@ -33,6 +33,8 @@ features = [
     "Win32_System_Console",
     "Win32_Security",
     "Win32_Storage_FileSystem",
+    "Win32_Storage_Packaging_Appx",
+    "Win32_Networking_WinHttp",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Accessibility",
     "Win32_UI_HiDpi",

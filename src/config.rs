@@ -20,6 +20,7 @@ pub struct Config {
     pub hotkeys: HotkeysConfig,
     pub taskbar: TaskbarConfig,
     pub search: SearchConfig,
+    pub update: UpdateConfig,
     pub theme: ThemeConfig,
 }
 
@@ -30,7 +31,22 @@ impl Default for Config {
             hotkeys: HotkeysConfig::default(),
             taskbar: TaskbarConfig::default(),
             search: SearchConfig::default(),
+            update: UpdateConfig::default(),
             theme: ThemeConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct UpdateConfig {
+    pub check_updates: bool,
+}
+
+impl Default for UpdateConfig {
+    fn default() -> Self {
+        Self {
+            check_updates: true,
         }
     }
 }

@@ -34,6 +34,9 @@ index_uwp = true
 index_start_menu = true
 placeholder = "Search apps, calculate, or run actions..."
 
+[update]
+check_updates = true
+
 [theme]
 sync_yasb = false
 font_family = "Poppins"

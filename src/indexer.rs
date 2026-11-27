@@ -33,6 +33,7 @@ use crate::commands::AppCommand;
 use crate::config::SearchConfig;
 use crate::icons;
 use crate::themes::{self, ThemeChoice};
+use crate::updater;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -79,6 +80,8 @@ pub enum SystemActionKind {
     ToggleTaskbar,
     ToggleWinKeyHook,
     OpenConfig,
+    CheckUpdates,
+    InstallUpdate,
     SetTheme(ThemeChoice),
 }
 
@@ -123,6 +126,21 @@ pub fn builtin_system_actions(taskbar_hidden: bool, intercept_win_key: bool) -> 
             name: "Open Launcher Settings".to_string(),
             keywords: "settings config preferences theme toml".to_string(),
             is_power: false,
+        },
+        if let Some(ver) = updater::latest_version() {
+            SystemAction {
+                kind: SystemActionKind::InstallUpdate,
+                name: format!("Update Velvet to v{ver}"),
+                keywords: "update upgrade new version release install download".to_string(),
+                is_power: false,
+            }
+        } else {
+            SystemAction {
+                kind: SystemActionKind::CheckUpdates,
+                name: "Check for Updates".to_string(),
+                keywords: "update upgrade version github release check".to_string(),
+                is_power: false,
+            }
         },
         SystemAction {
             kind: SystemActionKind::Lock,

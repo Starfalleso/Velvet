@@ -26,7 +26,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, MOD_NOREPEAT, VIRTUAL_KEY, VK_LWIN, VK_RWIN,
 };
 use windows::Win32::UI::Shell::{
-    Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW,
+    Shell_NotifyIconW, NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_TIP, NIIF_INFO, NIM_ADD, NIM_DELETE,
+    NIM_MODIFY, NOTIFYICONDATAW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CallNextHookEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW,
@@ -47,16 +48,19 @@ use crate::config::{parse_hotkey, Config, ThemeConfig};
 use crate::icons;
 use crate::taskbar;
 use crate::themes;
+use crate::updater;
 use crate::win_window;
 
 const HOTKEY_ID: i32 = 1;
 const WATCHDOG_TIMER_ID: usize = 101;
 const WATCHDOG_HIDDEN_MS: u32 = 250;
+const NIN_BALLOONUSERCLICK: u32 = 0x0405;
 
 const WM_TRAY: u32 = WM_APP + 1;
 const WM_SET_WIN_HOOK: u32 = WM_APP + 2;
 const WM_SYNC_TASKBAR_WATCH: u32 = WM_APP + 3;
 const WM_SET_MOUSE_HOOK: u32 = WM_APP + 4;
+const WM_NOTIFY_UPDATE: u32 = WM_APP + 5;
 
 const MENU_TOGGLE: usize = 1001;
 const MENU_RELOAD: usize = 1002;
@@ -65,6 +69,8 @@ const MENU_SETTINGS: usize = 1004;
 const MENU_QUIT: usize = 1005;
 const MENU_WIN_KEY: usize = 1006;
 const MENU_AUTOSTART: usize = 1007;
+const MENU_CHECK_UPDATES: usize = 1008;
+const MENU_INSTALL_UPDATE: usize = 1009;
 const MENU_THEME_BASE: usize = 1010;
 const MENU_THEME_MAX: usize = 32;
 
@@ -153,6 +159,19 @@ impl WinHooksHandle {
                     HWND(self.helper_hwnd as *mut _),
                     WM_SYNC_TASKBAR_WATCH,
                     WPARAM(usize::from(hidden)),
+                    LPARAM(0),
+                );
+            }
+        }
+    }
+
+    pub fn notify_update(&self, up_to_date_msg: bool) {
+        if self.helper_hwnd != 0 {
+            unsafe {
+                let _ = PostMessageW(
+                    HWND(self.helper_hwnd as *mut _),
+                    WM_NOTIFY_UPDATE,
+                    WPARAM(usize::from(up_to_date_msg)),
                     LPARAM(0),
                 );
             }
@@ -554,6 +573,24 @@ unsafe extern "system" fn helper_wnd_proc(
             set_mouse_hook_on_thread(wparam.0 != 0);
             LRESULT(0)
         }
+        WM_NOTIFY_UPDATE => {
+            if wparam.0 == 0 {
+                if let Some(ver) = updater::latest_version() {
+                    show_tray_balloon(
+                        hwnd,
+                        "Velvet Update Available",
+                        &format!("Velvet v{ver} is ready — click here or use the tray menu to update."),
+                    );
+                }
+            } else {
+                show_tray_balloon(
+                    hwnd,
+                    "Velvet",
+                    &format!("You're on the latest version (v{}).", updater::current_version()),
+                );
+            }
+            LRESULT(0)
+        }
         WM_TRAY => {
             let event = (lparam.0 as u32) & 0xFFFF;
             if event == WM_LBUTTONUP {
@@ -562,6 +599,10 @@ unsafe extern "system" fn helper_wnd_proc(
                 }
             } else if event == WM_RBUTTONUP {
                 show_tray_menu(hwnd);
+            } else if event == NIN_BALLOONUSERCLICK && updater::latest_update().is_some() {
+                if let Some(tx) = HOOK_TX.get() {
+                    let _ = tx.try_send(AppCommand::InstallUpdate);
+                }
             }
             LRESULT(0)
         }
@@ -586,6 +627,15 @@ unsafe extern "system" fn helper_wnd_proc(
                     }
                     MENU_SETTINGS => {
                         let _ = tx.try_send(AppCommand::OpenConfig);
+                    }
+                    MENU_CHECK_UPDATES => {
+                        let _ = tx.try_send(AppCommand::CheckForUpdates {
+                            manual: true,
+                            notify_tray: true,
+                        });
+                    }
+                    MENU_INSTALL_UPDATE => {
+                        let _ = tx.try_send(AppCommand::InstallUpdate);
                     }
                     cmd_id if (MENU_THEME_BASE..MENU_THEME_BASE + MENU_THEME_MAX).contains(&cmd_id) => {
                         let idx = cmd_id - MENU_THEME_BASE;
@@ -674,6 +724,13 @@ unsafe fn show_tray_menu(hwnd: HWND) {
     });
 
     let _ = AppendMenuW(menu, MF_STRING, MENU_TOGGLE, w!("Toggle Velvet"));
+    if let Some(ver) = updater::latest_version() {
+        let label_w: Vec<u16> = OsStr::new(&format!("Update Available (v{ver})"))
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let _ = AppendMenuW(menu, MF_STRING, MENU_INSTALL_UPDATE, PCWSTR(label_w.as_ptr()));
+    }
     let _ = AppendMenuW(menu, MF_POPUP, theme_menu.0 as usize, w!("Theme"));
     let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
     let _ = AppendMenuW(
@@ -697,6 +754,9 @@ unsafe fn show_tray_menu(hwnd: HWND) {
     let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
     let _ = AppendMenuW(menu, MF_STRING, MENU_RELOAD, w!("Reload Apps"));
     let _ = AppendMenuW(menu, MF_STRING, MENU_SETTINGS, w!("Open Config"));
+    if !updater::is_packaged_msix() && updater::latest_version().is_none() {
+        let _ = AppendMenuW(menu, MF_STRING, MENU_CHECK_UPDATES, w!("Check for Updates"));
+    }
     let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
     let _ = AppendMenuW(menu, MF_STRING, MENU_QUIT, w!("Quit Velvet"));
 
@@ -724,6 +784,27 @@ unsafe fn add_tray_icon(hwnd: HWND, hicon: HICON) {
     nid.szTip[..len].copy_from_slice(&tip[..len]);
 
     let _ = Shell_NotifyIconW(NIM_ADD, &nid);
+}
+
+unsafe fn show_tray_balloon(hwnd: HWND, title: &str, body: &str) {
+    let mut nid = NOTIFYICONDATAW {
+        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+        hWnd: hwnd,
+        uID: 1,
+        uFlags: NIF_INFO,
+        dwInfoFlags: NIIF_INFO,
+        ..Default::default()
+    };
+
+    let title_w: Vec<u16> = OsStr::new(title).encode_wide().collect();
+    let tlen = title_w.len().min(nid.szInfoTitle.len() - 1);
+    nid.szInfoTitle[..tlen].copy_from_slice(&title_w[..tlen]);
+
+    let body_w: Vec<u16> = OsStr::new(body).encode_wide().collect();
+    let blen = body_w.len().min(nid.szInfo.len() - 1);
+    nid.szInfo[..blen].copy_from_slice(&body_w[..blen]);
+
+    let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
 }
 
 unsafe fn remove_tray_icon(hwnd: HWND) {
